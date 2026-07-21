@@ -88,6 +88,8 @@ export interface Evaluation {
   progress: number;
   total: number;
   reason: string;
+  /** Measured time from the command's first input to its final input. */
+  executionFrames?: number;
   precisionFrames?: number;
 }
 

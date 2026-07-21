@@ -95,7 +95,7 @@ export const KAZUYA_MOVES: MoveDefinition[] = [
   {
     id: "hellsweep",
     characterId: "kazuya",
-    name: "Spinning Demon → Left Hook",
+    name: "Spinning Demon to Left Hook",
     notation: "f, n, d, DF+4, 1",
     category: "Crouch dash",
     difficulty: "Advanced",
@@ -164,7 +164,7 @@ export const KAZUYA_MOVES: MoveDefinition[] = [
   {
     id: "ff4",
     characterId: "kazuya",
-    name: "Devil's Steel Pedal",
+    name: "Devil's Steel Petal",
     notation: "f, F+4",
     category: "Core",
     difficulty: "Starter",

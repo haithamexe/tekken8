@@ -1,0 +1,22 @@
+{
+  "id": ".",
+  "name": "Mishima Lab — Tekken 8 Practice Aid",
+  "short_name": "Mishima Lab",
+  "description": "A local-first Kazuya command, timing, interaction, and drill laboratory for Tekken 8 practice.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#07080b",
+  "theme_color": "#0b0c11",
+  "orientation": "any",
+  "categories": ["games", "education", "utilities"],
+  "icons": [
+    {
+      "src": "mishima-lab-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "prefer_related_applications": false
+}

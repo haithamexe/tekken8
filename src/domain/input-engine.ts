@@ -103,7 +103,30 @@ export const evaluateMove = (
   const { steps } = move;
   const commandEndsWithAttack = Boolean(steps.at(-1)?.buttons);
   let meaningfulLength = tokens.length;
-  if (commandEndsWithAttack) {
+  const hasAttackInput = tokens.some((token) => token.buttons.length > 0);
+  if (commandEndsWithAttack && hasAttackInput) {
+    let lastAttackIndex = -1;
+    for (let index = tokens.length - 1; index >= 0; index -= 1) {
+      if (tokens[index].buttons.length > 0) {
+        lastAttackIndex = index;
+        break;
+      }
+    }
+    const nextAttemptTokens = tokens.slice(lastAttackIndex + 1);
+    const nextAttemptUpperBound = Math.min(nextAttemptTokens.length, steps.length - 1);
+    for (let length = nextAttemptUpperBound; length >= 1; length -= 1) {
+      const suffix = nextAttemptTokens.slice(-length);
+      const prefix = steps.slice(0, length);
+      if (prefix.every((step, index) => tokenMatchesStep(suffix[index], step))) {
+        return {
+          status: "progress",
+          progress: length,
+          total: steps.length,
+          reason: `Good start. Next: ${steps[length].label}.`,
+        };
+      }
+    }
+
     while (meaningfulLength > 0 && tokens[meaningfulLength - 1].buttons.length === 0) {
       meaningfulLength -= 1;
     }
@@ -130,6 +153,7 @@ export const evaluateMove = (
           status: "miss",
           progress: steps.length,
           total: steps.length,
+          executionFrames: (candidate.at(-1)!.at - candidate[0].at) / FRAME_MS,
           ...failure,
         };
       }
@@ -151,6 +175,7 @@ export const evaluateMove = (
         reason: move.state
           ? `Command accepted. Tekken executes this while ${move.state.toUpperCase()} is active.`
           : "Command and documented input windows accepted.",
+        executionFrames: (candidate.at(-1)!.at - candidate[0].at) / FRAME_MS,
         precisionFrames: justFrameToken?.simultaneousMs !== undefined
           ? justFrameToken.simultaneousMs / FRAME_MS
           : undefined,
@@ -185,6 +210,45 @@ export const evaluateMove = (
     progress: 0,
     total: steps.length,
     reason: `Read ${actual}; this command starts with ${expected}. Reset or begin the motion again.`,
+  };
+};
+
+export interface MoveDetection {
+  targetEvaluation: Evaluation;
+  detectedMove?: MoveDefinition;
+  detectedEvaluation?: Evaluation;
+}
+
+export const detectMove = (
+  targetMove: MoveDefinition,
+  roster: MoveDefinition[],
+  tokens: InputToken[],
+  oneFrameMs = FRAME_MS,
+  combatState: CombatState = "neutral",
+): MoveDetection => {
+  const targetEvaluation = evaluateMove(targetMove, tokens, oneFrameMs, combatState);
+  if (targetEvaluation.status === "success") {
+    return {
+      targetEvaluation,
+      detectedMove: targetMove,
+      detectedEvaluation: targetEvaluation,
+    };
+  }
+  if (targetEvaluation.status !== "miss") return { targetEvaluation };
+
+  const detected = roster
+    .filter((move) => move.id !== targetMove.id)
+    .map((move) => ({
+      move,
+      evaluation: evaluateMove(move, tokens, oneFrameMs, combatState),
+    }))
+    .filter(({ evaluation }) => evaluation.status === "success")
+    .sort((left, right) => right.move.steps.length - left.move.steps.length)[0];
+
+  return {
+    targetEvaluation,
+    detectedMove: detected?.move,
+    detectedEvaluation: detected?.evaluation,
   };
 };
 
