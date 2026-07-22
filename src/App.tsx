@@ -2,21 +2,31 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
+  ExternalLink,
   Gauge,
   Keyboard,
   RotateCcw,
-  Search,
   Target,
   TimerReset,
   X,
   Zap,
 } from "lucide-react";
+import { BeginnerPathCard } from "./components/BeginnerPathCard";
+import { ComboNavigator } from "./components/ComboNavigator";
 import { CommandStrip } from "./components/CommandStrip";
 import { InputTimeline } from "./components/InputTimeline";
+import { TrainingLibrary } from "./components/TrainingLibrary";
+import type { LibraryView } from "./components/TrainingLibrary";
 import {
+  DATA_CHECKED_AT,
+  DATA_SOURCES,
   DATA_VERSION,
+  KAZUYA_COMBOS,
+  KAZUYA_MOVES,
   PUBLIC_KAZUYA_MOVES,
   filterKazuyaMoves,
+  getBeginnerApproachById,
+  getComboById,
   getMoveById,
 } from "./data/kazuya";
 import { detectMove, directionLabel, FRAME_MS } from "./domain/input-engine";
@@ -43,7 +53,11 @@ const loadStats = (): LabStats => {
 const frameValue = (value: number | undefined) => value === undefined ? "—" : `${value.toFixed(1)}f`;
 
 export default function App() {
-  const [selectedMoveId, setSelectedMoveId] = useState("ewgf");
+  const [selectedMoveId, setSelectedMoveId] = useState("pewgf");
+  const [selectedComboId, setSelectedComboId] = useState(KAZUYA_COMBOS[0].id);
+  const [comboStepIndex, setComboStepIndex] = useState(0);
+  const [selectedApproachId, setSelectedApproachId] = useState("map-crouch-dash");
+  const [libraryView, setLibraryView] = useState<LibraryView>("moves");
   const [query, setQuery] = useState("");
   const [side, setSide] = useState<"P1" | "P2">("P1");
   const [moveListOpen, setMoveListOpen] = useState(false);
@@ -51,6 +65,10 @@ export default function App() {
   const settledTokenRef = useRef<number | null>(null);
 
   const activeMove = getMoveById(selectedMoveId);
+  const activeCombo = libraryView === "combos" ? getComboById(selectedComboId) : undefined;
+  const activeApproach = libraryView === "path"
+    ? getBeginnerApproachById(selectedApproachId)
+    : undefined;
   const combatState = activeMove.state ?? "neutral";
   const filteredMoves = useMemo(
     () => filterKazuyaMoves(PUBLIC_KAZUYA_MOVES, query, "All"),
@@ -62,7 +80,7 @@ export default function App() {
     enabled: true,
   });
   const detection = useMemo(
-    () => detectMove(activeMove, PUBLIC_KAZUYA_MOVES, tokens, FRAME_MS, combatState),
+    () => detectMove(activeMove, KAZUYA_MOVES, tokens, FRAME_MS, combatState),
     [activeMove, combatState, tokens],
   );
   const evaluation = detection.targetEvaluation;
@@ -107,11 +125,60 @@ export default function App() {
     settledTokenRef.current = null;
   };
 
-  const selectMove = (id: string) => {
+  const setActiveTrainingMove = (id: string) => {
     setSelectedMoveId(id);
+    resetAttempt();
+  };
+
+  const selectMove = (id: string) => {
+    setLibraryView("moves");
+    setActiveTrainingMove(id);
     setMoveListOpen(false);
-    clear();
-    settledTokenRef.current = null;
+  };
+
+  const selectComboStep = (index: number) => {
+    const combo = getComboById(selectedComboId);
+    const step = combo.steps[index];
+    if (!step?.moveId) return;
+    setComboStepIndex(index);
+    setActiveTrainingMove(step.moveId);
+  };
+
+  const selectCombo = (id: string) => {
+    const combo = getComboById(id);
+    const firstTrainableIndex = combo.steps.findIndex((step) => step.moveId);
+    setLibraryView("combos");
+    setSelectedComboId(id);
+    setComboStepIndex(firstTrainableIndex);
+    if (firstTrainableIndex >= 0) setActiveTrainingMove(combo.steps[firstTrainableIndex].moveId!);
+    setMoveListOpen(false);
+  };
+
+  const selectApproach = (id: string) => {
+    const approach = getBeginnerApproachById(id);
+    setLibraryView("path");
+    setSelectedApproachId(id);
+    setActiveTrainingMove(approach.moveId);
+    setMoveListOpen(false);
+  };
+
+  const changeLibraryView = (view: LibraryView) => {
+    setLibraryView(view);
+    setQuery("");
+    if (view === "moves") {
+      if (activeMove.internal) setActiveTrainingMove("pewgf");
+      return;
+    }
+    if (view === "combos") {
+      const combo = getComboById(selectedComboId);
+      const trainableIndex = combo.steps[comboStepIndex]?.moveId
+        ? comboStepIndex
+        : combo.steps.findIndex((step) => step.moveId);
+      setComboStepIndex(trainableIndex);
+      if (trainableIndex >= 0) setActiveTrainingMove(combo.steps[trainableIndex].moveId!);
+      return;
+    }
+    setActiveTrainingMove(getBeginnerApproachById(selectedApproachId).moveId);
   };
 
   const status = evaluation.status === "success"
@@ -136,15 +203,22 @@ export default function App() {
   const timingEvaluation = status === "wrong"
     ? detection.detectedEvaluation ?? evaluation
     : evaluation;
+  const targetLabel = activeCombo
+    ? `COMBO #${activeCombo.rank} · BASE DRILL ${comboStepIndex + 1}`
+    : activeApproach
+      ? `STARTER PATH · STEP ${activeApproach.rank}`
+      : activeMove.id === "pewgf"
+        ? "PRIMARY FOCUS · PERFECT ELECTRIC"
+        : "TARGET";
 
   return (
     <div className="trainer-shell">
       <header className="trainer-header">
         <div className="trainer-brand">
           <span><Zap size={17} /></span>
-          <div><strong>MISHIMA LAB</strong><small>input trainer</small></div>
+          <div><strong>MISHIMA LAB</strong><small>Season 3 · PEWGF trainer</small></div>
         </div>
-        <div className="listener-status"><i /> Direct keyboard listener · 60 Hz timing</div>
+        <div className="listener-status"><i /> Direct keyboard listener · 60 Hz timing proxy</div>
         <button
           className="side-button"
           type="button"
@@ -158,57 +232,49 @@ export default function App() {
       </header>
 
       <main className="trainer-layout">
-        <aside className={`move-picker${moveListOpen ? " is-open" : ""}`}>
-          <div className="picker-heading">
-            <div><span>MOVES</span><strong>Kazuya Mishima</strong></div>
-            <button type="button" onClick={() => setMoveListOpen(false)} aria-label="Close move list"><X size={17} /></button>
-          </div>
-          <label className="move-search">
-            <Search size={15} />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Name or notation"
-            />
-          </label>
-          <div className="move-list">
-            {filteredMoves.map((move) => (
-              <button
-                className={move.id === activeMove.id ? "is-active" : ""}
-                type="button"
-                onClick={() => selectMove(move.id)}
-                key={move.id}
-              >
-                <span><strong>{move.name}</strong><code>{move.notation}</code></span>
-                <small>{move.frames.startup}</small>
-              </button>
-            ))}
-            {filteredMoves.length === 0 && <p>No named move matches that search.</p>}
-          </div>
-          <div className="roster-note">
-            <Check size={14} />
-            <span><strong>{PUBLIC_KAZUYA_MOVES.length} named moves</strong>No generated “Kazuya + number” labels.</span>
-          </div>
-        </aside>
+        <TrainingLibrary
+          activeMoveId={activeMove.id}
+          filteredMoves={filteredMoves}
+          isOpen={moveListOpen}
+          onClose={() => setMoveListOpen(false)}
+          onQueryChange={setQuery}
+          onSelectApproach={selectApproach}
+          onSelectCombo={selectCombo}
+          onSelectMove={selectMove}
+          onViewChange={changeLibraryView}
+          query={query}
+          selectedApproachId={selectedApproachId}
+          selectedComboId={selectedComboId}
+          view={libraryView}
+        />
 
         <section className="practice-column">
           <header className="target-card">
             <div className="target-line">
               <div>
-                <span className="eyebrow"><Target size={13} /> TARGET</span>
+                <span className="eyebrow"><Target size={13} /> {targetLabel}</span>
                 <h1>{activeMove.name}</h1>
                 <p>{activeMove.notation}</p>
               </div>
               <div className="target-actions">
                 {activeMove.state && <span className="state-badge">{activeMove.state}</span>}
                 <button className="choose-move-button" type="button" onClick={() => setMoveListOpen((open) => !open)}>
-                  Choose move <ChevronDown size={14} />
+                  Library <ChevronDown size={14} />
                 </button>
                 <button type="button" onClick={resetAttempt}><RotateCcw size={14} /> Clear</button>
               </div>
             </div>
             <CommandStrip move={activeMove} progress={evaluation.progress} />
           </header>
+
+          {activeCombo && (
+            <ComboNavigator
+              activeStepIndex={comboStepIndex}
+              combo={activeCombo}
+              onSelectStep={selectComboStep}
+            />
+          )}
+          {activeApproach && <BeginnerPathCard approach={activeApproach} />}
 
           <section className={`execution-result status-${status}`} aria-live="polite">
             <div className="result-mark">{status === "success" ? <Check size={30} /> : status === "wrong" || status === "miss" ? <X size={30} /> : <Zap size={27} />}</div>
@@ -242,6 +308,21 @@ export default function App() {
         </section>
 
         <aside className="facts-column">
+          {activeMove.id === "pewgf" && (
+            <section className="fact-panel pewgf-recipe">
+              <div className="panel-title"><Zap size={15} /><strong>PEWGF · exact route</strong><small>i13 target</small></div>
+              <div className="recipe-frames">
+                <span><small>INPUT 1</small><strong>f</strong><em>forward</em></span>
+                <i>›</i>
+                <span><small>INPUT 2</small><strong>n</strong><em>≤ 1 frame</em></span>
+                <i>›</i>
+                <span><small>INPUT 3</small><strong>df:2</strong><em>same frame</em></span>
+              </div>
+              <p><strong>Skip down.</strong> A separate <code>d</code> produces the ordinary i14 EWGF route. A late <code>2</code> produces WGF.</p>
+              <small>Browser grade: both transitions must be within 1F and df/2 must sync within 1F. Confirm a true i13 result in Tekken with a 13f punish or the CH df+2 pickup.</small>
+            </section>
+          )}
+
           <section className="fact-panel">
             <div className="panel-title"><Gauge size={15} /><strong>Frame data</strong><small>{DATA_VERSION}</small></div>
             <div className="frame-facts">
@@ -256,7 +337,7 @@ export default function App() {
           <section className="fact-panel coach-copy">
             <div className="panel-title"><TimerReset size={15} /><strong>Execution</strong></div>
             <p>{activeMove.coach}</p>
-            {activeMove.notes && <small>{activeMove.notes}</small>}
+            <small>{activeMove.summary}{activeMove.notes ? ` ${activeMove.notes}` : ""}</small>
           </section>
 
           <section className="fact-panel stats-panel-simple">
@@ -269,7 +350,16 @@ export default function App() {
             <button type="button" onClick={() => setStats(DEFAULT_STATS)}>Reset stats</button>
           </section>
 
-          <p className="scope-note">This checks command order and browser-event timing. It does not simulate hitboxes, range, walls, or an opponent.</p>
+          <section className="fact-panel sources-panel">
+            <div className="panel-title"><ExternalLink size={15} /><strong>Checked sources</strong><small>{DATA_CHECKED_AT}</small></div>
+            <div>
+              {DATA_SOURCES.map((source) => (
+                <a href={source.url} target="_blank" rel="noreferrer" key={source.url}>{source.label}<ExternalLink size={10} /></a>
+              ))}
+            </div>
+          </section>
+
+          <p className="scope-note">This checks command order and browser-event timing. It cannot prove Tekken's sampled frame, hitbox, range, axis, wall, or juggle state.</p>
         </aside>
       </main>
     </div>

@@ -167,6 +167,8 @@ kbd,
 
 .move-picker,
 .target-card,
+.combo-navigator,
+.beginner-path-card,
 .execution-result,
 .live-input-bar,
 .input-microscope,
@@ -218,6 +220,41 @@ kbd,
   border: 0;
   background: transparent;
   cursor: pointer;
+}
+
+.library-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  padding: 8px 10px 0;
+}
+
+.library-tabs button {
+  min-width: 0;
+  height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--muted);
+  background: #0d0f13;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.library-tabs button:hover {
+  color: var(--text);
+}
+
+.library-tabs button.is-active {
+  border-color: rgba(173, 99, 255, 0.65);
+  color: var(--purple-soft);
+  background: rgba(173, 99, 255, 0.12);
 }
 
 .move-search {
@@ -284,6 +321,25 @@ kbd,
   gap: 3px;
 }
 
+.library-list .library-rank {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--purple-soft);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 9px;
+}
+
+.library-list > button.is-active .library-rank {
+  border-color: var(--purple);
+  color: var(--text);
+  background: var(--purple);
+}
+
 .move-list > button strong {
   overflow: hidden;
   font-size: 12px;
@@ -292,8 +348,16 @@ kbd,
 }
 
 .move-list code {
+  overflow: hidden;
   color: var(--purple-soft);
   font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-combos > button,
+.library-path > button {
+  min-height: 57px;
 }
 
 .move-list > button > small {
@@ -346,6 +410,254 @@ kbd,
 
 .target-card {
   padding: 18px;
+}
+
+.combo-navigator {
+  overflow: hidden;
+}
+
+.combo-navigator > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.combo-navigator > header > div:first-child {
+  min-width: 0;
+}
+
+.combo-navigator h2,
+.beginner-path-card h2 {
+  margin: 4px 0;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.combo-navigator header code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--purple-soft);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.combo-meta {
+  min-width: 76px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 5px;
+  text-align: right;
+}
+
+.combo-meta strong {
+  color: var(--amber);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 22px;
+}
+
+.combo-meta small {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.combo-meta span {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.combo-step-list {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 12px 14px;
+}
+
+.combo-step-list button {
+  min-width: 120px;
+  min-height: 60px;
+  display: flex;
+  flex: 1 0 120px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  background: #0d0f13;
+  cursor: pointer;
+  text-align: left;
+}
+
+.combo-step-list button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.combo-step-list button.is-active {
+  border-color: var(--purple);
+  color: var(--text);
+  background: rgba(173, 99, 255, 0.12);
+}
+
+.combo-step-list button:disabled {
+  border-style: dashed;
+  cursor: default;
+  opacity: 0.65;
+}
+
+.combo-step-list small {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.combo-step-list strong {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+}
+
+.combo-step-list em {
+  color: var(--amber);
+  font-size: 8px;
+  font-style: normal;
+}
+
+.combo-navigator > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--line);
+  background: rgba(13, 15, 19, 0.45);
+}
+
+.combo-navigator footer p {
+  max-width: 62%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.combo-navigator footer p strong {
+  display: block;
+  color: var(--text);
+  font-size: 9px;
+}
+
+.combo-navigator footer p small {
+  display: block;
+  margin-top: 5px;
+  color: #727984;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.combo-navigator footer > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.combo-navigator footer button {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  color: var(--text);
+  background: var(--panel-2);
+  cursor: pointer;
+}
+
+.combo-navigator footer button:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.combo-navigator footer span,
+.combo-navigator footer a {
+  color: var(--muted);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.combo-navigator footer a {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--purple-soft);
+  text-decoration: none;
+}
+
+.beginner-path-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(170px, 0.55fr);
+  align-items: center;
+  gap: 16px;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.path-rank {
+  color: rgba(173, 99, 255, 0.32);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.beginner-path-card p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.beginner-path-card > div > small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.path-checkpoint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid rgba(100, 214, 138, 0.25);
+  border-radius: 7px;
+  color: var(--green);
+  background: rgba(100, 214, 138, 0.06);
+}
+
+.path-checkpoint span {
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.path-checkpoint small {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--green);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
 }
 
 .target-line {
@@ -819,6 +1131,74 @@ kbd,
   padding: 14px;
 }
 
+.recipe-frames {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1.25fr;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.recipe-frames > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0d0f13;
+}
+
+.recipe-frames > i {
+  color: var(--purple);
+  font-style: normal;
+}
+
+.recipe-frames small {
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.recipe-frames strong {
+  color: var(--amber);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 15px;
+}
+
+.recipe-frames em {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 7px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pewgf-recipe > p {
+  color: var(--text);
+}
+
+.pewgf-recipe > p strong {
+  color: var(--amber);
+}
+
+.pewgf-recipe > p code {
+  color: var(--purple-soft);
+}
+
+.pewgf-recipe > small {
+  display: block;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
 .panel-title {
   display: flex;
   align-items: center;
@@ -914,6 +1294,37 @@ kbd,
 .stats-panel-simple button {
   width: 100%;
   justify-content: center;
+}
+
+.sources-panel > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.sources-panel a {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--muted);
+  background: #0d0f13;
+  font-size: 8px;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.sources-panel a:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.sources-panel a svg {
+  flex: 0 0 auto;
 }
 
 .scope-note {
@@ -1037,6 +1448,32 @@ kbd,
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .combo-navigator > footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .combo-navigator footer p {
+    max-width: none;
+  }
+
+  .combo-navigator footer > div {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .combo-navigator footer a {
+    margin-left: auto;
+  }
+
+  .beginner-path-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .path-checkpoint {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 520px) {
@@ -1078,6 +1515,27 @@ kbd,
   .target-actions button {
     flex: 1;
     justify-content: center;
+  }
+
+  .combo-navigator > header {
+    flex-direction: column;
+  }
+
+  .combo-meta {
+    text-align: left;
+  }
+
+  .combo-step-list button {
+    min-width: 108px;
+    flex-basis: 108px;
+  }
+
+  .combo-navigator footer span {
+    display: none;
+  }
+
+  .path-rank {
+    font-size: 32px;
   }
 
   .command-step {

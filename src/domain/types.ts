@@ -55,20 +55,37 @@ export interface MoveDefinition {
   state?: CombatState;
 }
 
-export interface DrillSegment {
-  moveId: string;
-  label?: string;
+export interface ComboRouteStep {
+  label: string;
+  notation: string;
+  /** Links the route fragment to the direct-input trainer when that fragment is independently detectable. */
+  moveId?: string;
+  cue?: string;
 }
 
-export interface DrillDefinition {
+export interface ComboDefinition {
   id: string;
+  rank: number;
   name: string;
   notation: string;
-  level: Difficulty;
-  type: "Combo route" | "Execution" | "Mix-up";
+  starter: string;
+  damage: number;
+  difficulty: "Beginner" | "Intermediate" | "Advanced" | "Expert";
+  context: string;
   summary: string;
-  segments: DrillSegment[];
-  sourceUrl?: string;
+  steps: ComboRouteStep[];
+  sourceUrl: string;
+  sourceVersion: string;
+}
+
+export interface BeginnerApproach {
+  id: string;
+  rank: number;
+  name: string;
+  moveId: string;
+  goal: string;
+  why: string;
+  checkpoint: string;
 }
 
 export interface InputToken {

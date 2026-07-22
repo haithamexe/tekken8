@@ -11,6 +11,11 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
 
 const DIRECTION_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD"]);
 const MAX_TOKENS = 28;
+const CARDINAL_DIRECTIONS = new Set<Direction>(["f", "b", "u", "d"]);
+
+const diagonalContains = (diagonal: Direction, cardinal: Direction) => (
+  diagonal.length === 2 && diagonal.includes(cardinal)
+);
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) return false;
@@ -29,6 +34,7 @@ export const useTekkenInput = ({ side, strict, enabled }: InputCaptureOptions) =
   const [heldButtons, setHeldButtons] = useState<AttackButton[]>([]);
   const directionKeysRef = useRef(new Set<string>());
   const attackKeysRef = useRef(new Set<string>());
+  const attackPressedAtRef = useRef(new Map<string, number>());
   const heldDirectionRef = useRef<Direction>("n");
   const tokenIdRef = useRef(0);
   const sessionStartRef = useRef<number | null>(null);
@@ -62,14 +68,62 @@ export const useTekkenInput = ({ side, strict, enabled }: InputCaptureOptions) =
     [],
   );
 
-  const recordDirectionTransition = useCallback((nextDirection: Direction, at: number) => {
+  const recordDirectionTransition = useCallback((
+    nextDirection: Direction,
+    at: number,
+    mergeAttackLedPress = false,
+  ) => {
     if (nextDirection === heldDirectionRef.current) return;
     directionChangedAtRef.current = at;
     heldDirectionRef.current = nextDirection;
     setHeldDirection(nextDirection);
     setTokens((previous) => {
       const last = previous.at(-1);
+      const activeAttackEntries = Object.entries(ATTACK_KEYS)
+        .filter(([code]) => attackKeysRef.current.has(code));
+      const activeButtons = activeAttackEntries.map(([, value]) => value);
+      const attackPressedAt = activeAttackEntries
+        .map(([code]) => attackPressedAtRef.current.get(code))
+        .filter((pressedAt): pressedAt is number => pressedAt !== undefined);
+      const earliestAttackAt = attackPressedAt.length > 0 ? Math.min(...attackPressedAt) : undefined;
+      const latestAttackAt = attackPressedAt.length > 0 ? Math.max(...attackPressedAt) : undefined;
+      // DOM key events are ordered even when Tekken could sample the keys on one frame.
+      // Fold an attack-led direction keydown into one token when it lands inside that frame.
+      const canMergeAttackLedDirection = Boolean(
+        mergeAttackLedPress
+        &&
+        last
+        && activeButtons.length > 0
+        && last.buttons.length === activeButtons.length
+        && last.buttons.every((button) => activeButtons.includes(button))
+        && earliestAttackAt !== undefined
+        && at >= earliestAttackAt
+        && at - earliestAttackAt <= FRAME_MS,
+      );
+      if (canMergeAttackLedDirection && earliestAttackAt !== undefined && latestAttackAt !== undefined) {
+        const combined = createToken(
+          nextDirection,
+          activeButtons,
+          at,
+          at - earliestAttackAt,
+          latestAttackAt - earliestAttackAt,
+        );
+        return [...previous.slice(0, -1), combined].slice(-MAX_TOKENS);
+      }
       if (last && last.direction === nextDirection && last.buttons.length === 0) return previous;
+      const nextFrame = sessionStartRef.current === null
+        ? 0
+        : Math.round((at - sessionStartRef.current) / FRAME_MS);
+      const formsDiagonalInCapturedFrame = Boolean(
+        last
+        && last.buttons.length === 0
+        && CARDINAL_DIRECTIONS.has(last.direction)
+        && diagonalContains(nextDirection, last.direction)
+        && last.frame === nextFrame,
+      );
+      if (formsDiagonalInCapturedFrame) {
+        return [...previous.slice(0, -1), createToken(nextDirection, [], at)].slice(-MAX_TOKENS);
+      }
       return [...previous, createToken(nextDirection, [], at)].slice(-MAX_TOKENS);
     });
   }, [createToken]);
@@ -95,11 +149,12 @@ export const useTekkenInput = ({ side, strict, enabled }: InputCaptureOptions) =
       if (isDirection) {
         directionKeysRef.current.add(event.code);
         const nextDirection = directionFromKeys(directionKeysRef.current, side);
-        recordDirectionTransition(nextDirection, at);
+        recordDirectionTransition(nextDirection, at, true);
         return;
       }
 
       attackKeysRef.current.add(event.code);
+      attackPressedAtRef.current.set(event.code, at);
       const activeButtons = Object.entries(ATTACK_KEYS)
         .filter(([code]) => attackKeysRef.current.has(code))
         .map(([, value]) => value);
@@ -111,6 +166,8 @@ export const useTekkenInput = ({ side, strict, enabled }: InputCaptureOptions) =
       setTokens((previous) => {
         const last = previous.at(-1);
 
+        // Keep a recorded neutral available for attack-first Mist Step inputs; direction
+        // attacks still replace their immediately preceding direction-only token.
         if (
           last &&
           last.buttons.length > 0 &&
@@ -131,7 +188,12 @@ export const useTekkenInput = ({ side, strict, enabled }: InputCaptureOptions) =
         }
 
         const token = createToken(currentDirection, [button], at, directionSpread);
-        if (last && last.buttons.length === 0 && last.direction === currentDirection) {
+        if (
+          last
+          && last.buttons.length === 0
+          && last.direction === currentDirection
+          && currentDirection !== "n"
+        ) {
           return [...previous.slice(0, -1), token].slice(-MAX_TOKENS);
         }
         return [...previous, token].slice(-MAX_TOKENS);
@@ -152,6 +214,7 @@ export const useTekkenInput = ({ side, strict, enabled }: InputCaptureOptions) =
 
       if (button) {
         attackKeysRef.current.delete(event.code);
+        attackPressedAtRef.current.delete(event.code);
         setHeldButtons(
           Object.entries(ATTACK_KEYS)
             .filter(([code]) => attackKeysRef.current.has(code))
@@ -163,6 +226,7 @@ export const useTekkenInput = ({ side, strict, enabled }: InputCaptureOptions) =
     const onBlur = () => {
       directionKeysRef.current.clear();
       attackKeysRef.current.clear();
+      attackPressedAtRef.current.clear();
       heldDirectionRef.current = "n";
       setHeldDirection("n");
       setHeldButtons([]);
