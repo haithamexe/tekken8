@@ -1,17 +1,17 @@
 import { Check, GraduationCap, List, Route, Search, X } from "lucide-react";
-import {
-  KAZUYA_BEGINNER_APPROACHES,
-  KAZUYA_COMBOS,
-  PUBLIC_KAZUYA_MOVES,
-  getMoveById,
-} from "../data/kazuya";
-import type { MoveDefinition } from "../domain/types";
+import { getMoveById } from "../data/registry";
+import type { BeginnerApproach, CharacterId, ComboDefinition, MoveDefinition } from "../domain/types";
 
 export type LibraryView = "moves" | "combos" | "path";
 
 interface TrainingLibraryProps {
   activeMoveId: string;
+  characterId: CharacterId;
+  characterName: string;
+  combos: ComboDefinition[];
+  beginnerApproaches: BeginnerApproach[];
   filteredMoves: MoveDefinition[];
+  totalMoveCount: number;
   isOpen: boolean;
   onClose: () => void;
   onQueryChange: (query: string) => void;
@@ -31,7 +31,12 @@ const includesQuery = (value: string, query: string) => (
 
 export const TrainingLibrary = ({
   activeMoveId,
+  characterId,
+  characterName,
+  combos,
+  beginnerApproaches,
   filteredMoves,
+  totalMoveCount,
   isOpen,
   onClose,
   onQueryChange,
@@ -44,12 +49,12 @@ export const TrainingLibrary = ({
   selectedComboId,
   view,
 }: TrainingLibraryProps) => {
-  const filteredCombos = KAZUYA_COMBOS.filter((combo) => includesQuery(
+  const filteredCombos = combos.filter((combo) => includesQuery(
     `${combo.name} ${combo.notation} ${combo.starter} ${combo.difficulty}`,
     query,
   ));
-  const filteredApproaches = KAZUYA_BEGINNER_APPROACHES.filter((approach) => includesQuery(
-    `${approach.name} ${approach.goal} ${approach.why} ${getMoveById(approach.moveId).notation}`,
+  const filteredApproaches = beginnerApproaches.filter((approach) => includesQuery(
+    `${approach.name} ${approach.goal} ${approach.why} ${getMoveById(characterId, approach.moveId).notation}`,
     query,
   ));
   const visibleCount = view === "moves"
@@ -61,7 +66,7 @@ export const TrainingLibrary = ({
   return (
     <aside className={`move-picker${isOpen ? " is-open" : ""}`}>
       <div className="picker-heading">
-        <div><span>TRAINING LIBRARY</span><strong>Kazuya Mishima</strong></div>
+        <div><span>TRAINING LIBRARY</span><strong>{characterName}</strong></div>
         <button type="button" onClick={onClose} aria-label="Close training library"><X size={17} /></button>
       </div>
 
@@ -131,7 +136,7 @@ export const TrainingLibrary = ({
         ))}
 
         {view === "path" && filteredApproaches.map((approach) => {
-          const move = getMoveById(approach.moveId);
+          const move = getMoveById(characterId, approach.moveId);
           return (
             <button
               className={approach.id === selectedApproachId ? "is-active" : ""}
@@ -152,7 +157,7 @@ export const TrainingLibrary = ({
       <div className="roster-note">
         <Check size={14} />
         <span>
-          <strong>{view === "moves" ? `${PUBLIC_KAZUYA_MOVES.length} named moves` : view === "combos" ? "10 Season 3 routes" : "10-step starter path"}</strong>
+          <strong>{view === "moves" ? `${totalMoveCount} named moves` : view === "combos" ? `${combos.length} Season 3 routes` : `${beginnerApproaches.length}-step starter path`}</strong>
           {view === "moves" ? "PEWGF, EWGF, and WGF are graded separately." : view === "combos" ? "Open a route to drill its named base commands." : "A practical order, not a tier list."}
         </span>
       </div>

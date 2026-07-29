@@ -132,6 +132,12 @@ kbd,
   box-shadow: 0 0 10px rgba(100, 214, 138, 0.7);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+}
+
 .side-button {
   height: 38px;
   min-width: 108px;
@@ -1588,5 +1594,115 @@ kbd,
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+.character-select {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 24px;
+}
+
+.character-select-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.character-select-heading > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #0b0c0f;
+  background: var(--purple);
+}
+
+.character-select-heading div {
+  display: flex;
+  flex-direction: column;
+}
+
+.character-select-heading strong {
+  font-size: 16px;
+  letter-spacing: 0.08em;
+}
+
+.character-select-heading small {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.character-select-grid {
+  width: 100%;
+  max-width: 760px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.character-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.character-card:hover {
+  border-color: var(--purple-soft);
+  transform: translateY(-2px);
+}
+
+.character-card-tagline {
+  color: var(--purple-soft);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.character-card h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.character-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.character-card-cta {
+  margin-top: 6px;
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.character-select-note {
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 620px) {
+  .character-select-grid {
+    grid-template-columns: 1fr;
   }
 }

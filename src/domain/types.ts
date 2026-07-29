@@ -1,4 +1,5 @@
 export type Direction = "n" | "f" | "b" | "u" | "d" | "df" | "db" | "uf" | "ub";
+export type CharacterId = "kazuya" | "reina";
 export type AttackButton = "1" | "2" | "3" | "4";
 export type MoveCategory = "Core" | "Punish" | "Crouch dash" | "Launch" | "Heat" | "Defense";
 export type Difficulty = "Starter" | "Intermediate" | "Advanced" | "Just frame";
@@ -38,7 +39,7 @@ export type FighterAnimation =
 
 export interface MoveDefinition {
   id: string;
-  characterId: "kazuya";
+  characterId: CharacterId;
   name: string;
   notation: string;
   category: MoveCategory;

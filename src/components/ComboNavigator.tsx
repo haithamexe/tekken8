@@ -1,14 +1,15 @@
 import { ArrowLeft, ArrowRight, ExternalLink, Route } from "lucide-react";
-import { getMoveById } from "../data/kazuya";
-import type { ComboDefinition } from "../domain/types";
+import { getMoveById } from "../data/registry";
+import type { CharacterId, ComboDefinition } from "../domain/types";
 
 interface ComboNavigatorProps {
   activeStepIndex: number;
+  characterId: CharacterId;
   combo: ComboDefinition;
   onSelectStep: (index: number) => void;
 }
 
-export const ComboNavigator = ({ activeStepIndex, combo, onSelectStep }: ComboNavigatorProps) => {
+export const ComboNavigator = ({ activeStepIndex, characterId, combo, onSelectStep }: ComboNavigatorProps) => {
   const trainableIndexes = combo.steps
     .map((step, index) => step.moveId ? index : -1)
     .filter((index) => index >= 0);
@@ -32,7 +33,7 @@ export const ComboNavigator = ({ activeStepIndex, combo, onSelectStep }: ComboNa
 
       <div className="combo-step-list" aria-label={`${combo.name} command list`}>
         {combo.steps.map((step, index) => {
-          const practiceMove = step.moveId ? getMoveById(step.moveId) : undefined;
+          const practiceMove = step.moveId ? getMoveById(characterId, step.moveId) : undefined;
           return (
             <button
               className={index === activeStepIndex ? "is-active" : ""}

@@ -8,30 +8,29 @@ import {
   RotateCcw,
   Target,
   TimerReset,
+  Users,
   X,
   Zap,
 } from "lucide-react";
 import { BeginnerPathCard } from "./components/BeginnerPathCard";
+import { CharacterSelect } from "./components/CharacterSelect";
 import { ComboNavigator } from "./components/ComboNavigator";
 import { CommandStrip } from "./components/CommandStrip";
 import { InputTimeline } from "./components/InputTimeline";
 import { TrainingLibrary } from "./components/TrainingLibrary";
 import type { LibraryView } from "./components/TrainingLibrary";
 import {
-  DATA_CHECKED_AT,
-  DATA_SOURCES,
-  DATA_VERSION,
-  KAZUYA_COMBOS,
-  KAZUYA_MOVES,
-  PUBLIC_KAZUYA_MOVES,
-  filterKazuyaMoves,
+  CHARACTERS,
+  filterMoves,
   getBeginnerApproachById,
   getComboById,
   getMoveById,
-} from "./data/kazuya";
+} from "./data/registry";
 import { detectMove, directionLabel, FRAME_MS } from "./domain/input-engine";
-import type { LabStats } from "./domain/types";
+import type { CharacterId, LabStats } from "./domain/types";
 import { useTekkenInput } from "./hooks/useTekkenInput";
+
+const CHARACTER_STORAGE_KEY = "mishima-lab-character";
 
 const DEFAULT_STATS: LabStats = {
   attempts: 0,
@@ -41,9 +40,18 @@ const DEFAULT_STATS: LabStats = {
   moveSuccesses: {},
 };
 
-const loadStats = (): LabStats => {
+const loadCharacter = (): CharacterId | null => {
   try {
-    const saved = window.localStorage.getItem("mishima-lab-stats");
+    const saved = window.localStorage.getItem(CHARACTER_STORAGE_KEY);
+    return saved === "kazuya" || saved === "reina" ? saved : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadStats = (characterId: CharacterId): LabStats => {
+  try {
+    const saved = window.localStorage.getItem(`mishima-lab-stats-${characterId}`);
     return saved ? { ...DEFAULT_STATS, ...JSON.parse(saved) as LabStats } : DEFAULT_STATS;
   } catch {
     return DEFAULT_STATS;
@@ -53,26 +61,49 @@ const loadStats = (): LabStats => {
 const frameValue = (value: number | undefined) => value === undefined ? "—" : `${value.toFixed(1)}f`;
 
 export default function App() {
-  const [selectedMoveId, setSelectedMoveId] = useState("pewgf");
-  const [selectedComboId, setSelectedComboId] = useState(KAZUYA_COMBOS[0].id);
+  const [characterId, setCharacterId] = useState<CharacterId | null>(loadCharacter);
+
+  if (!characterId) {
+    return (
+      <CharacterSelect
+        onSelect={(id) => {
+          window.localStorage.setItem(CHARACTER_STORAGE_KEY, id);
+          setCharacterId(id);
+        }}
+      />
+    );
+  }
+
+  return <Trainer characterId={characterId} onChangeCharacter={() => setCharacterId(null)} />;
+}
+
+interface TrainerProps {
+  characterId: CharacterId;
+  onChangeCharacter: () => void;
+}
+
+function Trainer({ characterId, onChangeCharacter }: TrainerProps) {
+  const character = CHARACTERS[characterId];
+  const [selectedMoveId, setSelectedMoveId] = useState(character.defaultMoveId);
+  const [selectedComboId, setSelectedComboId] = useState(character.combos[0].id);
   const [comboStepIndex, setComboStepIndex] = useState(0);
-  const [selectedApproachId, setSelectedApproachId] = useState("map-crouch-dash");
+  const [selectedApproachId, setSelectedApproachId] = useState(character.beginnerApproaches[0].id);
   const [libraryView, setLibraryView] = useState<LibraryView>("moves");
   const [query, setQuery] = useState("");
   const [side, setSide] = useState<"P1" | "P2">("P1");
   const [moveListOpen, setMoveListOpen] = useState(false);
-  const [stats, setStats] = useState<LabStats>(loadStats);
+  const [stats, setStats] = useState<LabStats>(() => loadStats(characterId));
   const settledTokenRef = useRef<number | null>(null);
 
-  const activeMove = getMoveById(selectedMoveId);
-  const activeCombo = libraryView === "combos" ? getComboById(selectedComboId) : undefined;
+  const activeMove = getMoveById(characterId, selectedMoveId);
+  const activeCombo = libraryView === "combos" ? getComboById(characterId, selectedComboId) : undefined;
   const activeApproach = libraryView === "path"
-    ? getBeginnerApproachById(selectedApproachId)
+    ? getBeginnerApproachById(characterId, selectedApproachId)
     : undefined;
   const combatState = activeMove.state ?? "neutral";
   const filteredMoves = useMemo(
-    () => filterKazuyaMoves(PUBLIC_KAZUYA_MOVES, query, "All"),
-    [query],
+    () => filterMoves(character.publicMoves, query, "All"),
+    [character.publicMoves, query],
   );
   const { tokens, heldDirection, heldButtons, clear } = useTekkenInput({
     side,
@@ -80,8 +111,8 @@ export default function App() {
     enabled: true,
   });
   const detection = useMemo(
-    () => detectMove(activeMove, KAZUYA_MOVES, tokens, FRAME_MS, combatState),
-    [activeMove, combatState, tokens],
+    () => detectMove(activeMove, character.moves, tokens, FRAME_MS, combatState),
+    [activeMove, character.moves, combatState, tokens],
   );
   const evaluation = detection.targetEvaluation;
   const wrongMove = detection.detectedMove?.id !== activeMove.id
@@ -91,8 +122,8 @@ export default function App() {
   const accuracy = stats.attempts === 0 ? 0 : Math.round((stats.successes / stats.attempts) * 100);
 
   useEffect(() => {
-    window.localStorage.setItem("mishima-lab-stats", JSON.stringify(stats));
-  }, [stats]);
+    window.localStorage.setItem(`mishima-lab-stats-${characterId}`, JSON.stringify(stats));
+  }, [characterId, stats]);
 
   useEffect(() => {
     if (!latestAttack || settledTokenRef.current === latestAttack.id) return;
@@ -137,7 +168,7 @@ export default function App() {
   };
 
   const selectComboStep = (index: number) => {
-    const combo = getComboById(selectedComboId);
+    const combo = getComboById(characterId, selectedComboId);
     const step = combo.steps[index];
     if (!step?.moveId) return;
     setComboStepIndex(index);
@@ -145,7 +176,7 @@ export default function App() {
   };
 
   const selectCombo = (id: string) => {
-    const combo = getComboById(id);
+    const combo = getComboById(characterId, id);
     const firstTrainableIndex = combo.steps.findIndex((step) => step.moveId);
     setLibraryView("combos");
     setSelectedComboId(id);
@@ -155,7 +186,7 @@ export default function App() {
   };
 
   const selectApproach = (id: string) => {
-    const approach = getBeginnerApproachById(id);
+    const approach = getBeginnerApproachById(characterId, id);
     setLibraryView("path");
     setSelectedApproachId(id);
     setActiveTrainingMove(approach.moveId);
@@ -166,11 +197,11 @@ export default function App() {
     setLibraryView(view);
     setQuery("");
     if (view === "moves") {
-      if (activeMove.internal) setActiveTrainingMove("pewgf");
+      if (activeMove.internal) setActiveTrainingMove(character.defaultMoveId);
       return;
     }
     if (view === "combos") {
-      const combo = getComboById(selectedComboId);
+      const combo = getComboById(characterId, selectedComboId);
       const trainableIndex = combo.steps[comboStepIndex]?.moveId
         ? comboStepIndex
         : combo.steps.findIndex((step) => step.moveId);
@@ -178,7 +209,7 @@ export default function App() {
       if (trainableIndex >= 0) setActiveTrainingMove(combo.steps[trainableIndex].moveId!);
       return;
     }
-    setActiveTrainingMove(getBeginnerApproachById(selectedApproachId).moveId);
+    setActiveTrainingMove(getBeginnerApproachById(characterId, selectedApproachId).moveId);
   };
 
   const status = evaluation.status === "success"
@@ -207,7 +238,7 @@ export default function App() {
     ? `COMBO #${activeCombo.rank} · BASE DRILL ${comboStepIndex + 1}`
     : activeApproach
       ? `STARTER PATH · STEP ${activeApproach.rank}`
-      : activeMove.id === "pewgf"
+      : activeMove.id === character.defaultMoveId
         ? "PRIMARY FOCUS · PERFECT ELECTRIC"
         : "TARGET";
 
@@ -216,25 +247,36 @@ export default function App() {
       <header className="trainer-header">
         <div className="trainer-brand">
           <span><Zap size={17} /></span>
-          <div><strong>MISHIMA LAB</strong><small>Season 3 · PEWGF trainer</small></div>
+          <div><strong>MISHIMA LAB</strong><small>{character.name} · Season 3 trainer</small></div>
         </div>
         <div className="listener-status"><i /> Direct keyboard listener · 60 Hz timing proxy</div>
-        <button
-          className="side-button"
-          type="button"
-          onClick={() => {
-            setSide((current) => current === "P1" ? "P2" : "P1");
-            resetAttempt();
-          }}
-        >
-          {side}<small>{side === "P1" ? "facing right" : "facing left"}</small>
-        </button>
+        <div className="header-actions">
+          <button className="side-button" type="button" onClick={onChangeCharacter} title={`Switch from ${character.name}`}>
+            <Users size={14} />
+            SWITCH<small>{character.name}</small>
+          </button>
+          <button
+            className="side-button"
+            type="button"
+            onClick={() => {
+              setSide((current) => current === "P1" ? "P2" : "P1");
+              resetAttempt();
+            }}
+          >
+            {side}<small>{side === "P1" ? "facing right" : "facing left"}</small>
+          </button>
+        </div>
       </header>
 
       <main className="trainer-layout">
         <TrainingLibrary
           activeMoveId={activeMove.id}
+          characterId={characterId}
+          characterName={character.name}
+          combos={character.combos}
+          beginnerApproaches={character.beginnerApproaches}
           filteredMoves={filteredMoves}
+          totalMoveCount={character.publicMoves.length}
           isOpen={moveListOpen}
           onClose={() => setMoveListOpen(false)}
           onQueryChange={setQuery}
@@ -270,6 +312,7 @@ export default function App() {
           {activeCombo && (
             <ComboNavigator
               activeStepIndex={comboStepIndex}
+              characterId={characterId}
               combo={activeCombo}
               onSelectStep={selectComboStep}
             />
@@ -308,7 +351,7 @@ export default function App() {
         </section>
 
         <aside className="facts-column">
-          {activeMove.id === "pewgf" && (
+          {activeMove.id === character.defaultMoveId && (
             <section className="fact-panel pewgf-recipe">
               <div className="panel-title"><Zap size={15} /><strong>PEWGF · exact route</strong><small>i13 target</small></div>
               <div className="recipe-frames">
@@ -319,12 +362,12 @@ export default function App() {
                 <span><small>INPUT 3</small><strong>df:2</strong><em>same frame</em></span>
               </div>
               <p><strong>Skip down.</strong> A separate <code>d</code> produces the ordinary i14 EWGF route. A late <code>2</code> produces WGF.</p>
-              <small>Browser grade: both transitions must be within 1F and df/2 must sync within 1F. Confirm a true i13 result in Tekken with a 13f punish or the CH df+2 pickup.</small>
+              <small>Browser grade: both transitions must be within 1F and df/2 must sync within 1F. Confirm a true i13 result in Tekken with a 13f punish or a counter-hit launcher pickup.</small>
             </section>
           )}
 
           <section className="fact-panel">
-            <div className="panel-title"><Gauge size={15} /><strong>Frame data</strong><small>{DATA_VERSION}</small></div>
+            <div className="panel-title"><Gauge size={15} /><strong>Frame data</strong><small>{character.dataVersion}</small></div>
             <div className="frame-facts">
               <div><span>STARTUP</span><strong>{activeMove.frames.startup}</strong></div>
               <div><span>ON BLOCK</span><strong>{activeMove.frames.onBlock}</strong></div>
@@ -351,9 +394,9 @@ export default function App() {
           </section>
 
           <section className="fact-panel sources-panel">
-            <div className="panel-title"><ExternalLink size={15} /><strong>Checked sources</strong><small>{DATA_CHECKED_AT}</small></div>
+            <div className="panel-title"><ExternalLink size={15} /><strong>Checked sources</strong><small>{character.dataCheckedAt}</small></div>
             <div>
-              {DATA_SOURCES.map((source) => (
+              {character.dataSources.map((source) => (
                 <a href={source.url} target="_blank" rel="noreferrer" key={source.url}>{source.label}<ExternalLink size={10} /></a>
               ))}
             </div>
